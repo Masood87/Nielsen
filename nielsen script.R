@@ -9,7 +9,7 @@ library(plyr)
 library(doBy)
 
 # working directory
-setwd("/Users/macbookair/Downloads/TSR data")
+setwd("/Users/macbookair/Google Drive/TSR data")
 
 # Weeks of data
 weeks <- list.dirs("/Users/macbookair/Downloads/TSR data", full.names = F)[-1]
@@ -100,7 +100,8 @@ Most_sold_categories <- sub_sales[, .(sales.sum = sum(sales), sales.mean = mean(
   merge(categories, by.x = "category_id", by.y = "category_id") %>% arrange(desc(sales.sum), desc(sales.mean), sales.sd)
 #another way to do it
 #Most_sold_categories <- summaryBy(sales ~ category_id, FUN = c(sum, mean, median, sd, length), data = sub_sales) %>% arrange(desc(sales.sum), desc(sales.mean), sales.sd) %>% head(200)
-write.csv(Most_sold_categories, file = "Most_sold_categories")
+Most_sold_categories <- Most_sold_categories[, c(1,7,2:6)] %>% as.data.table()
+write.csv(Most_sold_categories, file = "#Results tables/Most_sold_categories")
 
 
 # most sold products within top 50 categories
