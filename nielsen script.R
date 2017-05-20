@@ -3,6 +3,7 @@ rm(list = ls())
 
 # load packages
 library(data.table)
+library(Rcpp)
 library(dplyr)
 library(magrittr)
 library(plyr)
@@ -101,13 +102,14 @@ Most_sold_categories <- sub_sales[, .(sales.sum = sum(sales), sales.mean = mean(
 #another way to do it
 #Most_sold_categories <- summaryBy(sales ~ category_id, FUN = c(sum, mean, median, sd, length), data = sub_sales) %>% arrange(desc(sales.sum), desc(sales.mean), sales.sd) %>% head(200)
 Most_sold_categories <- Most_sold_categories[, c(1,7,2:6)] %>% as.data.table()
-write.csv(Most_sold_categories, file = "#Results tables/Most_sold_categories")
+write.csv(Most_sold_categories, file = "#Results tables/50 Most sold categories")
 
 
 # most sold products within top 50 categories
-top_cat <- Most_sold_categories[,1]
-x <- filter(sub_sales, category_id %in% top_cat)
-x[, .(sales.sum = sum(sales), sales.mean = mean(sales), sales.median = median(sales), sales.sd = sd(sales), uniq.items = n_distinct(product_id)), by = list(category_id, product_id)]
+top_cat <- Most_sold_categories$category_id
+Most_sold_products_by_category <- sub_sales[category_id %in% top_cat] %>% .[, .(sales.sum = sum(sales), sales.mean = mean(sales), sales.median = median(sales), sales.sd = sd(sales), uniq.items = n_distinct(product_id)), by = list(category_id, product_id)]
+Most_sold_products_by_category <- split(x, x$category_id) %>% head(5)
+write.csv(Most_sold_products_by_category, file = "#Results tables/Most sold products by category")
 
 
 ### Most sold items by volume (sorted: highest sum, highest mean, lowest sd)
