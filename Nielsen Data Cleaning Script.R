@@ -46,6 +46,7 @@ for (i in weeks) {
 }
 dup <- which(duplicated(categories$category_id))
 categories <- categories[-dup,]
+categories <- fread("New Categories.csv") %>% merge(categories, by = "category_name") %>% select(c(6,1,5,2))
 #write.csv(categories, "categories.master.csv", row.names = FALSE)
 
 
@@ -131,17 +132,17 @@ rm(weird_price)
 
 
 # Sanity check 2: products
-weird_products <- sales[, .(uniq.week = n_distinct(period_id), uniq.store = n_distinct(store_id)), by = .(product_id, store_id)] %>% 
-  .[uniq.week == 1 & uniq.store == 1] %>% merge(products, by = "product_id") %>% select(c(2,1,5,3,4))
+weird_products <- sales[, .(uniq.week = n_distinct(period_id), uniq.store = n_distinct(store_id)), by = .(product_id)] %>% 
+  .[uniq.week == 1 & uniq.store == 1] %>% merge(products, by = "product_id") %>% select(c(1,4,2,3))
 # Q: are these from one store? one period? A: No, it comes from all stores without apparent pattern
-write.csv(weird_products, file = "#Results tables/products sold only in one store and one week - weird?.csv")
+#write.csv(weird_products, file = "#Results tables/products sold only in one store and one week - weird?.csv")
 weird_products <- weird_products[, product_id]
 sales <- sales[!product_id == weird_products] %>% as.data.table()
 
 
 # Sanity check 3: Dummy Bucket Product
-sales <- merge(sales, products, by = "product_id") %>% select(c(1,10,2:9)) %>% .[product_name == "Dummy Bucket Product"] %>% as.data.table()
+sales <- merge(sales, products, by = "product_id") %>% select(c(1,10,2:9)) %>% .[!product_name == "Dummy Bucket Product"] %>% as.data.table()
 write.csv(sales, file = "sales.master.csv", row.names = FALSE)
-merge(sales, products, by = "product_id") %>% select(c(1,10,2:9)) %>% .[product_name == "Dummy Bucket Product"] %>% write.csv(file = "#Results tables/dummy bucket prodct.csv")
+#merge(sales, products, by = "product_id") %>% select(c(1,10,2:9)) %>% .[product_name == "Dummy Bucket Product"] %>% write.csv(file = "#Results tables/dummy bucket prodct.csv")
 
 # Sanity check 4: 

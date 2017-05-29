@@ -36,11 +36,34 @@ imdb <- fread("SCT data/IMDB.csv")
  ## ### ## ANALYSIS ## ### ##
 ## ##### ## ##### ## ##### ##
 
-# unique categories
+# unique (old) categories
 merge(sales, categories, by = "category_id") %>% .[, category_name] %>% unique() #%>% write.csv(file = "#Results tables/List of all categories.csv")
 
+# unique (new) categories
+merge(sales, categories, by = "category_id") %>% .[, `New Categories`] %>% unique() #%>% write.csv(file = "#Results tables/List of all categories.csv")
+
+# 1. Top selling products
+sales[, .(total.sales = sum(sales), uniq.store = n_distinct(store_id), uniq.week = n_distinct(period_id)), by = product_id] %>% 
+  merge(products, by = "product_id") %>% select(c(1,5,2:4)) %>% arrange(desc(total.sales))
+
+# 2. Top selling products by retailer
+merge(sales, stores, by = "store_id") %>% .[, .(total.sales = sum(sales), uniq.week = n_distinct(period_id), uniq.store = n_distinct(store_id)), by = .(ret.id, product_id)] %>% 
+  merge(products, by = "product_id") %>% select(c(2,5,1,6,3,4)) %>% arrange(desc(total.sales)) %>% split(., .$ret.id)
+
+# 3. Top selling products by store
+sales[, .(total.sales = sum(sales), uniq.week = n_distinct(period_id)), by = .(store_id, product_id)] %>% 
+  merge(products, by = "product_id") %>% select(c(2,1,5,3,4)) %>% arrange(desc(total.sales)) %>% split(., .$store_id)
+
+# 4. Top selling products by category
+sales[, .(total.sales = sum(sales))]
+
+#
+
+# Top selling (new) categories
+merge(sales, categories, by = "category_id") %>% .[, category_name] %>% unique() #%>% write.csv(file = "#Results tables/Top selling (new) categories.csv")
+
 ### Most sold items
-sales[, .(total.sales = sum(sales)), by = product_id] %>% merge(products, by = "product_id") %>% select(c(1,3,2)) %>% arrange(desc(total.sales)) %>% tail(20) #%>% write.csv(file = "#Results tables/20 most sold products - all market.csv")
+sales[, .(total.sales = sum(sales)), by = product_id] %>% merge(products, by = product_id) %>% select(c(1,3,2)) %>% arrange(desc(total.sales)) %>% tail(20) #%>% write.csv(file = "#Results tables/20 most sold products - all market.csv")
 
 ### Most sold categories
 sales[, .(total.sales = sum(sales), uniq.products = n_distinct(product_id)), by = category_id] %>% merge(categories, by = "category_id") %>% select(c(1, 4, 3, 2)) %>% arrange(desc(total.sales)) %>% tail(20) #%>% write.csv(file = "#Results tables/20 most sold categories - all market.csv")
