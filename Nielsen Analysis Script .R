@@ -1,4 +1,7 @@
 ### NIELSEN "PRICING AND PROMOTION" PROJECT
+
+# DATA ANALYSIS
+
 # MA in Applied Economics (CERGE-EI)
 # TEAM in order of alphabet: Kate, Masood, Reynolds, Robert, Sylva
 
@@ -15,107 +18,41 @@ library(plyr)
 ##### Loading data ######
 #########################
 
-# working directory
 setwd("/Users/macbookair/Google Drive/TSR data")
 
-# Weeks of data
-weeks <- 472:536
-
-# Importing and joining brands
-brands <- data.table()
-for (i in weeks) {
-  x <- fread(paste0(i, "/brands.csv"))
-  brands <- rbind(brands, x)
-  rm(x)
-}
-dup <- which(duplicated(brands$brand_id))
-brands <- brands[-dup,]
-
-# Importing and joining categories
-categories <- data.table()
-for (i in weeks) {
-  x <- fread(paste0(i, "/categories.csv"))
-  categories <- rbind(categories, x)
-  rm(x)
-}
-dup <- which(duplicated(categories$category_id))
-categories <- categories[-dup,]
-
-# Importing and joining manufacturers
-manufacturers <- data.table()
-for (i in weeks) {
-  x <- fread(paste0(i, "/manufacturers.csv"), sep = ";")
-  manufacturers <- rbind(manufacturers, x)
-  rm(x)
-}
-dup <- which(duplicated(manufacturers$manufacturer_id))
-manufacturers <- manufacturers[-dup,]
-
-# Importing and joining products
-products <- data.table()
-for (i in weeks) {
-  x <- fread(paste0(i, "/products.csv"))
-  products <- rbind(products, x)
-  rm(x)
-}
-dup <- which(duplicated(products$product_id))
-products <- products[-dup,]
-
-# Importing and joining sales data
-sales <- data.table()
-for (i in weeks) {
-  x <- fread(paste0(i, "/rawdata.csv"), sep = ";") %>% as.data.table()
-  sales <- rbind.fill(sales, x) %>% as.data.table()
-  rm(x)
-}
-sales$period_id <- as.integer(sales$period_id)
-sales$price <- as.numeric(sub(",", ".", sales$price))
-sales$sales <- as.numeric(sub(",", ".", sales$sales))
-sales$volume <- round(sales$sales / sales$price)
-sales <- select(sales, -promo) %>% as.data.table()
-
-# Importing periods
-periods <- fread("periods.csv")
-
-# Importing stores
+categories <- fread("categories.master.csv")
+products <- fread("products.master.csv")
+sales <- fread("sales.master.csv")
 stores <- fread("stores.csv")
+periods <- fread("periods.csv")
+brands <- fread("brands.master.csv")
+manufacturers <- fread("manufacturers.master.csv")
 
+qbrik <- fread("qbrik.master.csv")
+qbrik1 <- fread("qbrik1.master.csv")
+imdb <- fread("SCT data/IMDB.csv")
 
+##### ## ##### ##### ## #####
+ ## ### ## ANALYSIS ## ### ##
+## ##### ## ##### ## ##### ##
 
-#########################
-##### Sanity Checks #####
-#########################
-# Sanity check 1: price 
-weird_price <- sales[, .(max = max(price), min = min(price), uniq.week = n_distinct(period_id)), by = product_id] %>% 
-  .[max > 5*min] %>% merge(products, by = "product_id") %>% select(c(1, 5, 2:4))
-
-write.csv(weird_price, file = "#Results tables/products with weird prices - max(price) > min(price)*5")
-
-weird_price <- weird_price[, product_id]
-sales <- sales[!product_id %in% weird_price] %>% as.data.table()
-rm(weird_price)
-
-# Sanity check 2: products
-weird_products <- sales[, .(uniq.week = n_distinct(period_id), uniq.store = n_distinct(store_id)), by = .(product_id)] %>% 
-  .[uniq.week == 1 & uniq.store == 1] %>% merge(products, by = "product_id") %>% select(c(1,4,2,3))
-
-write.csv(weird_products, file = "#Results tables/products sold only in one store and one week - weird?")
-weird_products <- weird_products[, product_id]
-sales <- sales[!product_id == weird_products] %>% as.data.table()
-
-# Sanity check 3: Dummy Bucket Product
-sales <- merge(sales, products, by = "product_id") %>% select(c(1,10,2:9)) %>% .[!product_name == "Dummy Bucket Product"] %>% as.data.table()
-
-
-####################
-##### Analysis #####
-####################
 # unique categories
-merge(sales, categories, by = "category_id") %>% .[, category_name] %>% unique() %>% write.csv(file = "#Results tables/List of all categories")
+merge(sales, categories, by = "category_id") %>% .[, category_name] %>% unique() #%>% write.csv(file = "#Results tables/List of all categories.csv")
 
 ### Most sold items
-most.sold.products <- sales[, .(total.sales = sum(sales)), by = product_id] %>% merge(products, by = "product_id") %>% select(c(1,3,2)) %>% arrange(desc(total.sales)) %>% head(20)
-write.csv(most.sold.products, file = "#Results tables/20 most sold products - all market")
+sales[, .(total.sales = sum(sales)), by = product_id] %>% merge(products, by = "product_id") %>% select(c(1,3,2)) %>% arrange(desc(total.sales)) %>% tail(20) #%>% write.csv(file = "#Results tables/20 most sold products - all market.csv")
+
+### Most sold categories
+sales[, .(total.sales = sum(sales), uniq.products = n_distinct(product_id)), by = category_id] %>% merge(categories, by = "category_id") %>% select(c(1, 4, 3, 2)) %>% arrange(desc(total.sales)) %>% tail(20) #%>% write.csv(file = "#Results tables/20 most sold categories - all market.csv")
+
+### Most sold items per store
+sold.prod.store <- sales[, .(total.sales = sum(sales), uniq.products = n_distinct(product_id)), by = .(store_id, product_id)] %>% merge(products, by = "product_id") %>% select(c(2,1,5,4,3)) %>% arrange(store_id, desc(total.sales)) %>% split(., .$store_id)
+sold.prod.store <- lapply(sold.prod.store, head, 10)
+sold.prod.store <- do.call("rbind", lapply(sold.prod.store, as.data.frame)) 
+sold.prod.store$store_id <- rownames(sold.prod.store) %>% sub(".\\d{1,}", "", .)
+write.csv("#Results tables/10 most sold items - by store.csv")
+data.frame(sold.prod.store)
+
 
 most.sold.products.store <- sales[, .(total.sales = sum(sales)), by = .(store_id, product_id)] %>% merge(products, by = "product_id") %>% select(c(2,1,4,3)) %>% split(., .$store_id)
 most.sold.products.store[[1]] %>% arrange(desc(total.sales)) %>% head(5) %>% write.csv(file = "#Results tables/most.sold.products.store.1")
