@@ -9,7 +9,6 @@ rm(list = ls())
 
 # load packages
 library(data.table)
-library(Rcpp)
 library(dplyr)
 library(magrittr)
 library(foreign)
@@ -23,7 +22,6 @@ setwd("/Users/macbookair/Google Drive/TSR data")
 
 # Weeks of data
 weeks <- 472:536
-
 
 # brands
 brands <- data.table()
@@ -93,28 +91,34 @@ sales[, "promo" := NULL]
 stores <- fread("stores.csv")
 
 
-# qbrik
+# qbrik and qbrik1
 qbrik <- fread("SCT data/qbrik.dsv")
 qbrik$NC_REGPR <- as.numeric(sub(",", ".", qbrik$NC_REGPR))
 qbrik$NC_SALES <- as.numeric(sub(",", ".", qbrik$NC_SALES))
 qbrik$NC_TSBASE <- as.numeric(sub(",", ".", qbrik$NC_TSBASE))
 qbrik$NC_VALUE <- as.numeric(sub(",", ".", qbrik$NC_VALUE))
 qbrik$NC_XSBASE <- as.numeric(sub(",", ".", qbrik$NC_XSBASE))
-write.csv(qbrik, "qbrik.master.csv", row.names = FALSE)
-
-
-# qbrik1
 qbrik1 <- fread("SCT data/qbrik1.dsv")
 qbrik1$NC_REGPR <- as.numeric(sub(",", ".", qbrik1$NC_REGPR))
 qbrik1$NC_SALES <- as.numeric(sub(",", ".", qbrik1$NC_SALES))
 qbrik1$NC_TSBASE <- as.numeric(sub(",", ".", qbrik1$NC_TSBASE))
 qbrik1$NC_VALUE <- as.numeric(sub(",", ".", qbrik1$NC_VALUE))
 qbrik1$NC_XSBASE <- as.numeric(sub(",", ".", qbrik1$NC_XSBASE))
-write.csv(qbrik1, "qbrik1.master.csv", row.names = FALSE)
+qbrik.master <- rbind(qbrik, qbrik1)
+write.csv(qbrik, "qbrik.master.csv", row.names = FALSE)
 
 
-# imbd: problem loading
-imdb <- read.dbf("SCT data/IMDB.DBF")
+# imdb: problem loading
+imdb <- fread("SCT data/IMDB.csv")
+qbrik.imdb <- left_join(qbrik, imdb, by = c("AC_PCODE" = "P_CODE")) %>% as.data.table()
+write.csv(qbrik.imdb, "qbrik.imdb.csv", row.names = FALSE)
+
+
+# I want to merge imdb and qbrik
+sales.promo <- left_join(sales, qbrik.imdb, by = c("product_id" = "ac_pcode", "store_id" = "ac_nshopid", "period_id" = "nc_periodid")) %>% as.data.table()
+sales.promo <- left_join(sales.promo, qbrik.imdb, by = c("product_id" = "ppcode", "store_id" = "ac_nshopid", "period_id" = "nc_periodid")) %>% as.data.table()
+# write.csv(sales.promo, "sales.promo.csv")
+
 
 
 #########################
@@ -133,7 +137,7 @@ rm(weird_price)
 
 # Sanity check 2: products
 weird_products <- sales[, .(uniq.week = n_distinct(period_id), uniq.store = n_distinct(store_id)), by = .(product_id)] %>% 
-  .[uniq.week == 1 & uniq.store == 1] %>% merge(products, by = "product_id") %>% select(c(1,4,2,3))
+  .[uniq.week == 1 & uniq.store == 1] %>% merge(., products, by = "product_id") %>% select(c(1,4,2,3))
 # Q: are these from one store? one period? A: No, it comes from all stores without apparent pattern
 #write.csv(weird_products, file = "#Results tables/products sold only in one store and one week - weird?.csv")
 weird_products <- weird_products[, product_id]
